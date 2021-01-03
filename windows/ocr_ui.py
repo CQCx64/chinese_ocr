@@ -11,6 +11,7 @@ import os
 import cv2
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QMessageBox, QWidget, QFileDialog
 import pyperclip
 import utils
@@ -32,6 +33,7 @@ class Ui_OCR(QWidget):
 
     def setupUi(self, OCR):
         OCR.setObjectName("OCR")
+        OCR.setWindowIcon(QIcon('ocr.ico'))
         OCR.resize(1212, 810)
         self.centralwidget = QtWidgets.QWidget(OCR)
         self.centralwidget.setObjectName("centralwidget")
@@ -244,6 +246,8 @@ class Ui_OCR(QWidget):
         self.pb_save.setEnabled(False)
         self.checkBox.setEnabled(False)
 
+
+
     def retranslateUi(self, OCR):
         _translate = QtCore.QCoreApplication.translate
         OCR.setWindowTitle(_translate("OCR", "OCR"))
@@ -262,7 +266,7 @@ class Ui_OCR(QWidget):
         global IMAGE_PATH
         imgName, imgType = QFileDialog.getOpenFileName(QWidget(), "打开图片", "./images",
                                                        "*.png;;*.jpg;;All Files(*)")
-        jpg = QtGui.QPixmap(imgName).scaled(self.label_image.width(), self.label_image.height())
+
         # if not utils.has_chinese(imgName):
         #     IMAGE_PATH = imgName
         #     if IMAGE_PATH != '':
@@ -274,17 +278,27 @@ class Ui_OCR(QWidget):
         #                                  QMessageBox.Ok | QMessageBox.Ok)
         #     if button == QMessageBox.Ok:
         #         self.close()
+        if IMAGE_PATH != imgName and imgName != '':
+            IMAGE_PATH = imgName
 
-        IMAGE_PATH = imgName
         if IMAGE_PATH != '':
+            img = cv2.imdecode(np.fromfile(IMAGE_PATH, dtype=np.uint8), -1)
+            img_height, img_width = img.shape[:-1]
+            if img_width >= img_height:
+                jpg = QtGui.QPixmap(IMAGE_PATH).scaled(self.label_image.width(),
+                                                    self.label_image.width() / img_width * img_height)
+            else:
+                jpg = QtGui.QPixmap(IMAGE_PATH).scaled(self.label_image.height() / img_height * img_width,
+                                                    self.label_image.height())
             self.label_image.setPixmap(jpg)
             self.statusbar.showMessage('当前图片：' + IMAGE_PATH)
             print('当前图片：' + IMAGE_PATH)
 
-        self.pb_word.setEnabled(True)
-        self.pb_photo.setEnabled(True)
-        self.checkBox.setEnabled(True)
+            self.pb_word.setEnabled(True)
+            self.pb_photo.setEnabled(True)
+            self.checkBox.setEnabled(True)
 
+        # TODO: 图片的预处理 裁切、旋转等
         # img = cv2.imread(IMAGE_PATH)
         # cv2.imshow('Image operation', img)
         # cv2.waitKey(0)
@@ -363,14 +377,15 @@ class Ui_OCR(QWidget):
 
     def save_res(self):
         dir_path = QFileDialog.getExistingDirectory(self, "选择保存目录", "./output")
-        save_path = dir_path + '/' + os.path.split(IMAGE_PATH)[-1] + '识别结果.txt'
-        print(save_path)
-        f = open(save_path, 'w')
-        f.write('---------------------' + IMAGE_PATH + ' 识别结果' + '---------------------\n\n\n')
-        for line in self.textEdit.toPlainText():
-            f.write(line)
-        f.close()
-        self.statusbar.showMessage('当前图片：' + IMAGE_PATH + ' 识别结果已保存至 ' + save_path)
+        if dir_path != '':
+            save_path = dir_path + '/' + os.path.split(IMAGE_PATH)[-1] + '识别结果.txt'
+            print(save_path)
+            f = open(save_path, 'w')
+            f.write('---------------------' + IMAGE_PATH + ' 识别结果' + '---------------------\n\n\n')
+            for line in self.textEdit.toPlainText():
+                f.write(line)
+            f.close()
+            self.statusbar.showMessage('当前图片：' + IMAGE_PATH + ' 识别结果已保存至 ' + save_path)
 
     def sentence_transform(self, res_list):
         res_str = ''
